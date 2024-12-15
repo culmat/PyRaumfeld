@@ -11,6 +11,7 @@ import raumfeld
 import threading
 from bottle import route, run
 from urllib.parse import quote, unquote
+import os
 
 updateAvailableEvent = threading.Event()
 
@@ -375,4 +376,4 @@ resetUpdateAvailableEventThread = threading.Thread(target=__resetUpdateAvailable
 resetUpdateAvailableEventThread.daemon = True
 resetUpdateAvailableEventThread.start()
 
-run(host='0.0.0.0', port=8080, debug=True)
+run(host='0.0.0.0', port=int(os.getenv('PORT', 8080)), debug=True)
