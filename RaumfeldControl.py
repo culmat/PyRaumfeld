@@ -12,6 +12,9 @@ import threading
 from bottle import route, run
 from urllib.parse import quote, unquote
 import os
+from bottle import response
+
+
 
 updateAvailableEvent = threading.Event()
 
@@ -376,4 +379,19 @@ resetUpdateAvailableEventThread = threading.Thread(target=__resetUpdateAvailable
 resetUpdateAvailableEventThread.daemon = True
 resetUpdateAvailableEventThread.start()
 
-run(host='0.0.0.0', port=int(os.getenv('PORT', 8080)), debug=True)
+def enable_cors(fn):
+    def _enable_cors(*args, **kwargs):
+        response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization, X-Requested-With, Accept, Origin, User-Agent, Cache-Control, Pragma'
+        response.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, OPTIONS'
+        response.headers['Access-Control-Max-Age'] = '86400'
+        response.headers['Access-Control-Allow-Origin'] = '*'
+        return fn(*args, **kwargs)
+    return _enable_cors
+
+# Apply the CORS decorator to all routes
+from bottle import default_app
+app = default_app()
+for route in app.routes:
+    route.callback = enable_cors(route.callback)
+
+run(host='0.0.0.0', port=int(os.getenv('PORT', 8080)), debug=os.getenv('DEBUG', False))
