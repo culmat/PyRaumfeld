@@ -54,10 +54,10 @@ def index():
     returndata += '</ul>'
     returndata += '<b>Zone actions:</b>'
     returndata += '<ul>'
+    returndata += '<li>/zone/&lt;name_udn&gt; - Returns the Zone name and UDN in JSON format</li>'
     returndata += '<li>/zone/&lt;name_udn&gt;/volume - get volume from the zone defined by the &lt;name&gt; or &lt;udn&gt;</li>'
     returndata += '<li>/zone/&lt;name_udn&gt;/volume/&lt;volume&gt; - set the volume of the zone defined by the &lt;name&gt; or &lt;udn&gt; to &lt;volume&gt;</li>'
     returndata += '<li>/zone/&lt;name_udn&gt;/volume/[+/-]&lt;amount&gt; - changes the volume of the zone defined by the &lt;name&gt; or &lt;udn&gt; by [+/-]&lt;amount&gt; percent</li>'
-    returndata += '<li>/zone/&lt;name_udn&gt;/rooms - list the rooms in a zone defined by the &lt;name&gt; or &lt;udn&gt;</li>'
     returndata += '<li>/zone/&lt;name_udn&gt;/play/&lt;uri&gt; - plays &lt;uri&gt; in the given zone</li>'
     returndata += '<li>/zone/&lt;name_udn&gt;/play - start to play in the given zone</li>'
     returndata += '<li>/zone/&lt;name_udn&gt;/pause - pause the given zone</li>'
@@ -65,6 +65,7 @@ def index():
     returndata += '<li>/zone/&lt;name_udn&gt;/next - play next song in the given zone</li>'
     returndata += '<li>/zone/&lt;name_udn&gt;/previous - play previous song in the given zone</li>'
     returndata += '<li>/zone/&lt;name_udn&gt;/stop - stop the given zone</li>'
+    returndata += '<li>/zone/&lt;name_udn&gt;/rooms - list the rooms in a zone defined by the &lt;name&gt; or &lt;udn&gt;</li>'
     returndata += '<li>/zone/&lt;name_udn&gt;/transport_info - show transport information of the given zone</li>'
     returndata += '</ul>'
     returndata += '<b>Room actions:</b>'
@@ -72,6 +73,10 @@ def index():
     returndata += '<li>/room/&lt;name_udn&gt; - Returns the Room name and UDN in JSON format</li>'
     returndata += '<li>/room/&lt;name_udn&gt;/volume - get the volume of the given room</li>'
     returndata += '<li>/room/&lt;name_udn&gt;/volume/&lt;volume&gt; - set the volume of the given room</li>'
+    returndata += '<li>/room/&lt;name_udn&gt;/volume/[+/-]&lt;amount&gt; - changes the volume of the room defined by the &lt;name&gt; or &lt;udn&gt; by [+/-]&lt;amount&gt; percent</li>'
+    returndata += '<li>/room/&lt;name_udn&gt;/play/&lt;uri&gt; - plays &lt;uri&gt; in the given room</li>'
+    returndata += '<li>/room/&lt;name_udn&gt;/play - start to play in the given room</li>'
+    returndata += '<li>/room/&lt;name_udn&gt;/stop - stop the given room</li>'
     returndata += '<li>/room/&lt;name_udn&gt;/zone - get the zone associated to the given room</li>'
     returndata += '<li>/room/&lt;name_udn&gt;/separate - Separates the the Room defined by the name or UDN from its zone</li>'
     returndata += '</ul>'
@@ -296,9 +301,10 @@ def getRoomVolume(name_udn):
         returndata["success"] = True
     return json.dumps(returndata)
 
-@route('/room/<name_udn>/volume/<volume:int>')
+@route(r'/room/<name_udn>/volume/<volume:re:\d+>')
 def setRoomVolume(name_udn, volume):
     """Sets the volume of the Room defined by the name or UDN"""
+    print("set by "+str(volume))
     returndata = {}
     returndata["success"] = False
     room = __getSingleRoom(name_udn)
@@ -306,6 +312,49 @@ def setRoomVolume(name_udn, volume):
         room.volume = volume
         returndata["success"] = True
     return json.dumps(returndata)
+
+@route(r'/room/<name_udn>/volume/<amount:re:[+-]\d+>')
+def changeRoomVolume(name_udn, amount):
+    """Changes the volume of the Room defined by the name or UDN"""
+    print("changeRoomVolume by "+amount)
+    returndata = {}
+    returndata["success"] = False
+    room = __getSingleRoom(name_udn)
+    if room != None:
+        room.changeVolume(int(amount))
+        returndata["success"] = True
+    return json.dumps(returndata)
+
+@route('/room/<name_udn>/play/<uri:path>')
+def roomPlayURI(name_udn, uri):
+    returndata = {}
+    returndata["success"] = False
+    room = __getSingleRoom(name_udn)
+    if room != None:
+        room.play(unquote(uri))
+        returndata["success"] = True
+    return json.dumps(returndata)
+
+@route('/room/<name_udn>/play')
+def roomPlay(name_udn):
+    returndata = {}
+    returndata["success"] = False
+    room = __getSingleRoom(name_udn)
+    if room != None:
+        room.play()
+        returndata["success"] = True
+    return json.dumps(returndata)
+
+@route('/room/<name_udn>/stop')
+def roomStop(name_udn):
+    returndata = {}
+    returndata["success"] = False
+    room = __getSingleRoom(name_udn)
+    if room != None:
+        room.stop()
+        returndata["success"] = True
+    return json.dumps(returndata)
+
 
 @route('/room/<name_udn>/zone')
 def getRoomZone(name_udn):
