@@ -320,16 +320,26 @@ class Zone(Renderer):
     def media_info(self):
         """Get the media information"""
         info = self._avTransport.GetMediaInfo(InstanceID=1)
-        info_dict = {'NrTracks': info.NrTracks,
-                     'MediaDuration': info.MediaDuration,
-                     'CurrentURI': info.CurrentURI,
-                     'CurrentURIMetaData': info.CurrentURIMetaData,
-                     'NextUri': info.NextUri,
-                     'NextUriMetaData': info.NextUriMetaData,
-                     'PlayMedium': info.PlayMedium,
-                     'RecordMedium': info.RecordMedium,
-                     'WriteStatus': info.WriteStatus
-                     }
+        info_dict = {}
+        if hasattr(info, 'NrTracks'):
+            info_dict['NrTracks'] = info.NrTracks
+        if hasattr(info, 'MediaDuration'):
+            info_dict['MediaDuration'] = info.MediaDuration
+        if hasattr(info, 'CurrentURI'):
+            info_dict['CurrentURI'] = info.CurrentURI
+        if hasattr(info, 'CurrentURIMetaData'):
+            info_dict['CurrentURIMetaData'] = info.CurrentURIMetaData
+        if hasattr(info, 'NextUri'):
+            info_dict['NextUri'] = info.NextUri
+        if hasattr(info, 'NextUriMetaData'):
+            info_dict['NextUriMetaData'] = info.NextUriMetaData
+        if hasattr(info, 'PlayMedium'):
+            info_dict['PlayMedium'] = info.PlayMedium
+        if hasattr(info, 'RecordMedium'):
+            info_dict['RecordMedium'] = info.RecordMedium
+        if hasattr(info, 'WriteStatus'):
+            info_dict['WriteStatus'] = info.WriteStatus
+        print(info_dict)
         return info_dict
 
     """For each info there are extra functions"""

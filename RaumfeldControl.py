@@ -271,6 +271,17 @@ def getTransportInfo(name_udn):
         returndata["success"] = True
     return json.dumps(returndata)
 
+@route('/zone/<name_udn>/media_info')
+def getMediaInfo(name_udn):
+    """Get the transport information of the Zone defined by the name or UDN"""
+    returndata = {}
+    returndata["data"] = []
+    returndata["success"] = False
+    zone = __getSingleZone(name_udn)
+    if zone != None:
+        returndata["data"].append(zone.media_info)
+        returndata["success"] = True
+    return json.dumps(returndata)
 
 
 ################
