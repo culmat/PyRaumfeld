@@ -9,7 +9,7 @@ import json
 import logging
 import raumfeld
 import threading
-from bottle import route, run
+from bottle import route, run, ServerAdapter
 from urllib.parse import quote, unquote
 import os
 from bottle import response
@@ -455,4 +455,32 @@ app = default_app()
 for route in app.routes:
     route.callback = enable_cors(route.callback)
 
-run(host='0.0.0.0', port=int(os.getenv('PORT', 8080)), debug=os.getenv('DEBUG', False))
+class ThreadedWSGIRefServer(ServerAdapter):
+    """Serve each request on its own thread.
+
+    Bottle's default wsgiref server handles one request at a time. Every route
+    here talks UPnP to the Raumfeld host, and when one of those calls hangs the
+    whole API stops answering, including the endpoints that would have revealed
+    why. A thread per request keeps a single stuck call local to that request.
+    """
+
+    def run(self, handler):
+        from socketserver import ThreadingMixIn
+        from wsgiref.simple_server import WSGIRequestHandler, WSGIServer, make_server
+
+        class QuietHandler(WSGIRequestHandler):
+            def address_string(self):
+                # Skip the reverse DNS lookup the default does per request.
+                return self.client_address[0]
+
+        class ThreadedServer(ThreadingMixIn, WSGIServer):
+            daemon_threads = True
+
+        server = make_server(self.host, self.port, handler,
+                             server_class=ThreadedServer,
+                             handler_class=QuietHandler)
+        server.serve_forever()
+
+
+run(host='0.0.0.0', port=int(os.getenv('PORT', 8080)),
+    debug=os.getenv('DEBUG', False), server=ThreadedWSGIRefServer)
