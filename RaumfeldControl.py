@@ -67,6 +67,7 @@ def index():
     returndata += '<li>/zone/&lt;name_udn&gt;/stop - stop the given zone</li>'
     returndata += '<li>/zone/&lt;name_udn&gt;/rooms - list the rooms in a zone defined by the &lt;name&gt; or &lt;udn&gt;</li>'
     returndata += '<li>/zone/&lt;name_udn&gt;/transport_info - show transport information of the given zone</li>'
+    returndata += '<li>/zone/&lt;name_udn&gt;/media_info - show media information of the given zone, including the URI it is playing</li>'
     returndata += '</ul>'
     returndata += '<b>Room actions:</b>'
     returndata += '<ul>'
@@ -267,7 +268,7 @@ def getTransportInfo(name_udn):
     returndata["success"] = False
     zone = __getSingleZone(name_udn)
     if zone != None:
-        returndata["data"].append(zone.transport_info_CurrentTransportState(zone))
+        returndata["data"].append(zone.transport_info_CurrentTransportState)
         returndata["success"] = True
     return json.dumps(returndata)
 

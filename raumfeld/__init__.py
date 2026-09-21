@@ -322,63 +322,62 @@ class Zone(Renderer):
         info = self._avTransport.GetMediaInfo(InstanceID=1)
         info_dict = {}
         if hasattr(info, 'NrTracks'):
-            info_dict['NrTracks'] = info.NrTracks
+            info_dict['NrTracks'] = str(info.NrTracks)
         if hasattr(info, 'MediaDuration'):
-            info_dict['MediaDuration'] = info.MediaDuration
+            info_dict['MediaDuration'] = str(info.MediaDuration)
         if hasattr(info, 'CurrentURI'):
-            info_dict['CurrentURI'] = info.CurrentURI
+            info_dict['CurrentURI'] = str(info.CurrentURI)
         if hasattr(info, 'CurrentURIMetaData'):
-            info_dict['CurrentURIMetaData'] = info.CurrentURIMetaData
+            info_dict['CurrentURIMetaData'] = str(info.CurrentURIMetaData)
         if hasattr(info, 'NextUri'):
-            info_dict['NextUri'] = info.NextUri
+            info_dict['NextUri'] = str(info.NextUri)
         if hasattr(info, 'NextUriMetaData'):
-            info_dict['NextUriMetaData'] = info.NextUriMetaData
+            info_dict['NextUriMetaData'] = str(info.NextUriMetaData)
         if hasattr(info, 'PlayMedium'):
-            info_dict['PlayMedium'] = info.PlayMedium
+            info_dict['PlayMedium'] = str(info.PlayMedium)
         if hasattr(info, 'RecordMedium'):
-            info_dict['RecordMedium'] = info.RecordMedium
+            info_dict['RecordMedium'] = str(info.RecordMedium)
         if hasattr(info, 'WriteStatus'):
-            info_dict['WriteStatus'] = info.WriteStatus
-        print(info_dict)
+            info_dict['WriteStatus'] = str(info.WriteStatus)
         return info_dict
 
     """For each info there are extra functions"""
 
     @property
     def media_info_NrTracks(self):
-        return self.media_info()['NrTracks']
+        return self.media_info['NrTracks']
 
     @property
     def media_info_MediaDuration(self):
-        return self.media_info()['MediaDuration']
+        return self.media_info['MediaDuration']
 
     @property
     def media_info_CurrentURI(self):
-        return self.media_info()['CurrentURI']
+        return self.media_info['CurrentURI']
 
     @property
     def media_info_CurrentURIMetaData(self):
-        return self.media_info()['CurrentURIMetaData']
+        return self.media_info['CurrentURIMetaData']
 
     @property
     def media_info_NextUri(self):
-        return self.media_info()['NextUri']
+        return self.media_info['NextUri']
 
     @property
     def media_info_NextUriMetaData(self):
-        return self.media_info()['NextUriMetaData']
+        return self.media_info['NextUriMetaData']
 
     @property
     def media_info_PlayMedium(self):
-        return self.media_info()['PlayMedium']
+        return self.media_info['PlayMedium']
 
     @property
     def media_info_RecordMedium(self):
-        return self.media_info()['RecordMedium']
+        return self.media_info['RecordMedium']
 
     @property
     def media_info_WriteStatus(self):
-        return self.media_info()['WriteStatus']
+        return self.media_info['WriteStatus']
 
     """Generic function for getting all position info"""
 
@@ -386,14 +385,14 @@ class Zone(Renderer):
     def position_info(self):
         """Get the position information"""
         info = self._avTransport.GetPositionInfo(InstanceID=1)
-        info_dict = {'Track': info.Track,
-                     'TrackDuration': info.TrackDuration,
-                     'TrackMetaData': info.TrackMetaData,
-                     'TrackURI': info.TrackURI,
-                     'RelTime': info.RelTime,
-                     'AbsTime': info.AbsTime,
-                     'RelCount': info.RelCount,
-                     'AbsCount': info.AbsCount
+        info_dict = {'Track': str(info.Track),
+                     'TrackDuration': str(info.TrackDuration),
+                     'TrackMetaData': str(info.TrackMetaData),
+                     'TrackURI': str(info.TrackURI),
+                     'RelTime': str(info.RelTime),
+                     'AbsTime': str(info.AbsTime),
+                     'RelCount': str(info.RelCount),
+                     'AbsCount': str(info.AbsCount)
                      }
         return info_dict
 
@@ -401,35 +400,35 @@ class Zone(Renderer):
 
     @property
     def position_info_Track(self):
-        return self.position_info()['Track']
+        return self.position_info['Track']
 
     @property
     def position_info_TrackDuration(self):
-        return self.position_info()['TrackDuration']
+        return self.position_info['TrackDuration']
 
     @property
     def position_info_TrackMetaData(self):
-        return self.position_info()['TrackMetaData']
+        return self.position_info['TrackMetaData']
 
     @property
     def position_info_TrackURI(self):
-        return self.position_info()['TrackURI']
+        return self.position_info['TrackURI']
 
     @property
     def position_info_RelTime(self):
-        return self.position_info()['RelTime']
+        return self.position_info['RelTime']
 
     @property
     def position_info_AbsTime(self):
-        return self.position_info()['AbsTime']
+        return self.position_info['AbsTime']
 
     @property
     def position_info_RelCount(self):
-        return self.position_info()['RelCount']
+        return self.position_info['RelCount']
 
     @property
     def position_info_AbsCount(self):
-        return self.position_info()['AbsCount']
+        return self.position_info['AbsCount']
 
     """Generic function for getting all transport info"""
 
@@ -437,9 +436,9 @@ class Zone(Renderer):
     def transport_info(self):
         """Get the transport information"""
         info = self._avTransport.GetTransportInfo(InstanceID=1)
-        info_dict = {'CurrentTransportState': info.CurrentTransportState,
-                     'CurrentTransportStatus': info.CurrentTransportStatus,
-                     'CurrentSpeed': info.CurrentSpeed
+        info_dict = {'CurrentTransportState': str(info.CurrentTransportState),
+                     'CurrentTransportStatus': str(info.CurrentTransportStatus),
+                     'CurrentSpeed': str(info.CurrentSpeed)
                      }
         return info_dict
 
@@ -447,15 +446,15 @@ class Zone(Renderer):
 
     @property
     def transport_info_CurrentTransportState(self):
-        return self.transport_info()['CurrentTransportState']
+        return self.transport_info['CurrentTransportState']
 
     @property
     def transport_info_CurrentTransportStatus(self):
-        return self.transport_info()['CurrentTransportStatus']
+        return self.transport_info['CurrentTransportStatus']
 
     @property
     def transport_info_CurrentSpeed(self):
-        return self.transport_info()['CurrentSpeed']
+        return self.transport_info['CurrentSpeed']
 
 
 class Room(object):
