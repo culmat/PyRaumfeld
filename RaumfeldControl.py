@@ -10,9 +10,10 @@ import logging
 import raumfeld
 import threading
 from bottle import route, run, ServerAdapter
-from urllib.parse import quote, unquote
+from urllib.parse import quote, unquote, urlencode
+from xml.sax.saxutils import escape
 import os
-from bottle import response
+from bottle import request, response
 
 
 
@@ -39,6 +40,35 @@ def __getSingleRoom(name_udn):
         if (len(rooms) > 0):
             room = rooms[0]
     return room
+
+
+def __streamAndMeta(uri):
+    """The stream URL from the path, and DIDL-Lite metadata when ?title= is given.
+
+    With a title (and optionally ?art= for a cover image) the stream is announced as a
+    broadcast: the Raumfeld app shows the title and cover, and the host then follows the
+    stream's ICY titles, which it ignores for a stream started without metadata. Any
+    other query parameters belong to the stream URL itself.
+    """
+    title = request.query.getunicode('title')
+    art = request.query.getunicode('art')
+    rest = [(k, v) for k, v in request.query.allitems() if k not in ('title', 'art')]
+    uri = unquote(uri)
+    if rest:
+        uri += '?' + urlencode(rest)
+    if not title:
+        return uri, ""
+    mime = 'audio/mpeg' if uri.split('?')[0].endswith('.mp3') else 'audio/aac' if uri.split('?')[0].endswith('.aac') else '*'
+    meta = ('<DIDL-Lite xmlns:dc="http://purl.org/dc/elements/1.1/" '
+            'xmlns:upnp="urn:schemas-upnp-org:metadata-1-0/upnp/" '
+            'xmlns="urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/">'
+            '<item id="0" parentID="0" restricted="1">'
+            '<dc:title>' + escape(title) + '</dc:title>'
+            + ('<upnp:albumArtURI>' + escape(art) + '</upnp:albumArtURI>' if art else '') +
+            '<upnp:class>object.item.audioItem.audioBroadcast</upnp:class>'
+            '<res protocolInfo="http-get:*:' + mime + ':*">' + escape(uri) + '</res>'
+            '</item></DIDL-Lite>')
+    return uri, meta
 
 
 @route('/')
@@ -191,7 +221,7 @@ def zonePlayURI(name_udn, uri):
     zone = __getSingleZone(name_udn)
     if zone != None:
         #zone.play("dlna-playcontainer://{udn}?sid={sid}&cid={cid}&md=0".format(udn=quote(raumfeld.getMediaServerUDN()), sid=quote("urn:upnp-org:serviceId:ContentDirectory"), cid=quote("0/Playlists/MyPlaylists/Radio/" + unicode(index))))
-        zone.play(unquote(uri))
+        zone.play(*__streamAndMeta(uri))
         returndata["success"] = True
     return json.dumps(returndata)
 
@@ -343,7 +373,7 @@ def roomPlayURI(name_udn, uri):
     returndata["success"] = False
     room = __getSingleRoom(name_udn)
     if room != None:
-        room.play(unquote(uri))
+        room.play(*__streamAndMeta(uri))
         returndata["success"] = True
     return json.dumps(returndata)
 
