@@ -11,7 +11,7 @@ import raumfeld
 import threading
 from bottle import route, run, ServerAdapter
 from urllib.parse import quote, unquote, urlencode
-from xml.sax.saxutils import escape
+from xml.sax.saxutils import escape, quoteattr
 import os
 from bottle import request, response
 
@@ -42,33 +42,43 @@ def __getSingleRoom(name_udn):
     return room
 
 
+# The query parameters that describe the stream rather than belong to its URL.
+_META_PARAMS = ('title', 'artist', 'album', 'art', 'id')
+
+
 def __streamAndMeta(uri):
     """The stream URL from the path, and DIDL-Lite metadata when ?title= is given.
 
-    With a title (and optionally ?art= for a cover image) the stream is announced as a
-    broadcast: the Raumfeld app shows the title and cover, and the host then follows the
-    stream's ICY titles, which it ignores for a stream started without metadata. Any
-    other query parameters belong to the stream URL itself.
+    With a title (and optionally ?artist=, ?album=, ?art= for a cover image and ?id= for
+    the item's id) the stream is announced as a broadcast: the Raumfeld app shows those
+    details, and the host then follows the stream's ICY titles, which it ignores for a
+    stream started without metadata. The host keeps the id as given, so a client can
+    recognise the item it described. Any other query parameters belong to the stream
+    URL itself.
     """
-    title = request.query.getunicode('title')
-    art = request.query.getunicode('art')
-    rest = [(k, v) for k, v in request.query.allitems() if k not in ('title', 'art')]
+    meta = {k: request.query.getunicode(k) for k in _META_PARAMS}
+    rest = [(k, v) for k, v in request.query.allitems() if k not in _META_PARAMS]
     uri = unquote(uri)
     if rest:
         uri += '?' + urlencode(rest)
-    if not title:
+    if not meta['title']:
         return uri, ""
-    mime = 'audio/mpeg' if uri.split('?')[0].endswith('.mp3') else 'audio/aac' if uri.split('?')[0].endswith('.aac') else '*'
-    meta = ('<DIDL-Lite xmlns:dc="http://purl.org/dc/elements/1.1/" '
+    path = uri.split('?')[0]
+    mime = 'audio/mpeg' if path.endswith('.mp3') else 'audio/aac' if path.endswith('.aac') else '*'
+    tag = lambda name, key: '<' + name + '>' + escape(meta[key]) + '</' + name + '>' if meta[key] else ''
+    item_id = quoteattr(meta['id'] or '0')
+    didl = ('<DIDL-Lite xmlns:dc="http://purl.org/dc/elements/1.1/" '
             'xmlns:upnp="urn:schemas-upnp-org:metadata-1-0/upnp/" '
             'xmlns="urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/">'
-            '<item id="0" parentID="0" restricted="1">'
-            '<dc:title>' + escape(title) + '</dc:title>'
-            + ('<upnp:albumArtURI>' + escape(art) + '</upnp:albumArtURI>' if art else '') +
+            '<item id=' + item_id + ' parentID="0" restricted="1">'
+            + tag('dc:title', 'title')
+            + tag('upnp:artist', 'artist')
+            + tag('upnp:album', 'album')
+            + tag('upnp:albumArtURI', 'art') +
             '<upnp:class>object.item.audioItem.audioBroadcast</upnp:class>'
             '<res protocolInfo="http-get:*:' + mime + ':*">' + escape(uri) + '</res>'
             '</item></DIDL-Lite>')
-    return uri, meta
+    return uri, didl
 
 
 @route('/')
@@ -88,8 +98,9 @@ def index():
     returndata += '<li>/zone/&lt;name_udn&gt;/volume - get volume from the zone defined by the &lt;name&gt; or &lt;udn&gt;</li>'
     returndata += '<li>/zone/&lt;name_udn&gt;/volume/&lt;volume&gt; - set the volume of the zone defined by the &lt;name&gt; or &lt;udn&gt; to &lt;volume&gt;</li>'
     returndata += '<li>/zone/&lt;name_udn&gt;/volume/[+/-]&lt;amount&gt; - changes the volume of the zone defined by the &lt;name&gt; or &lt;udn&gt; by [+/-]&lt;amount&gt; percent</li>'
-    returndata += '<li>/zone/&lt;name_udn&gt;/play/&lt;uri&gt; - plays &lt;uri&gt; in the given zone</li>'
+    returndata += '<li>/zone/&lt;name_udn&gt;/play/&lt;uri&gt; - plays &lt;uri&gt; in the given zone; ?title=, ?artist=, ?album=, ?art= and ?id= describe it</li>'
     returndata += '<li>/zone/&lt;name_udn&gt;/play - start to play in the given zone</li>'
+    returndata += '<li>/zone/&lt;name_udn&gt;/bend/&lt;uri&gt; - change what the given zone shows for the &lt;uri&gt; it plays, without interrupting it</li>'
     returndata += '<li>/zone/&lt;name_udn&gt;/pause - pause the given zone</li>'
     returndata += '<li>/zone/&lt;name_udn&gt;/play_pause - toggle between play and pause for the given zone</li>'
     returndata += '<li>/zone/&lt;name_udn&gt;/next - play next song in the given zone</li>'
@@ -232,6 +243,26 @@ def zonePlay(name_udn):
     zone = __getSingleZone(name_udn)
     if zone != None:
         zone.play()
+        returndata["success"] = True
+    return json.dumps(returndata)
+
+@route('/zone/<name_udn>/bend/<uri:path>')
+def zoneBendURI(name_udn, uri):
+    """Change what the zone shows for the stream it plays, without interrupting it.
+
+    Takes the same ?title=, ?artist=, ?album=, ?art= and ?id= as play. A stream carries
+    one description from its start, so a radio stream that moves from song to song needs
+    this to name each one. Zones only, as in Music Assistant's Raumfeld provider.
+    """
+    returndata = {}
+    returndata["success"] = False
+    zone = __getSingleZone(name_udn)
+    uri, meta = __streamAndMeta(uri)
+    if not meta:
+        response.status = 400
+        returndata["error"] = "a title is required"
+    elif zone != None:
+        zone.bend(uri, meta)
         returndata["success"] = True
     return json.dumps(returndata)
 
