@@ -81,5 +81,14 @@ https://github.com/tfeldmann/python-raumfeld
 * PyRaumfeldSample.py: Shows the basic usage
 * RaumfeldControl.py: Provides a web-based API to the Raumfeld system
 
+###FIP songs in the Raumfeld app:
+FIP's streams carry no song details, so a zone playing one shows only what it was
+started with. With `FIP_METADATA_URL` set to a
+[fip-metadata](https://github.com/harperreed/fip-metadata-server) service, RaumfeldControl.py
+keeps every zone that plays a FIP Icecast stream showing the current song: title, artist,
+cover, and the station as album. It replaces the zone's description at each song change
+without interrupting the stream (`fip.py`). Without the variable it does nothing of the kind.
+Run its tests with `python3 -m unittest discover tests`.
+
 ###Known issues:
 * Due to a bug in the Raumfeld firmware, the Zone names may be incorrect
