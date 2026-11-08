@@ -11,9 +11,11 @@ import raumfeld
 import threading
 from bottle import route, run, ServerAdapter
 from urllib.parse import quote, unquote, urlencode
-from xml.sax.saxutils import escape, quoteattr
 import os
+import time
 from bottle import request, response
+from didl import broadcast_didl
+import fip
 
 
 
@@ -42,6 +44,17 @@ def __getSingleRoom(name_udn):
     return room
 
 
+# A zone's playback commands and the FIP follower take the zone's lock, so the follower
+# never describes the stream a zone is just leaving.
+_zoneLocks = {}
+_zoneLocksLock = threading.Lock()
+
+
+def _zoneLock(udn):
+    with _zoneLocksLock:
+        return _zoneLocks.setdefault(udn, threading.Lock())
+
+
 # The query parameters that describe the stream rather than belong to its URL.
 _META_PARAMS = ('title', 'artist', 'album', 'art', 'id')
 
@@ -63,22 +76,7 @@ def __streamAndMeta(uri):
         uri += '?' + urlencode(rest)
     if not meta['title']:
         return uri, ""
-    path = uri.split('?')[0]
-    mime = 'audio/mpeg' if path.endswith('.mp3') else 'audio/aac' if path.endswith('.aac') else '*'
-    tag = lambda name, key: '<' + name + '>' + escape(meta[key]) + '</' + name + '>' if meta[key] else ''
-    item_id = quoteattr(meta['id'] or '0')
-    didl = ('<DIDL-Lite xmlns:dc="http://purl.org/dc/elements/1.1/" '
-            'xmlns:upnp="urn:schemas-upnp-org:metadata-1-0/upnp/" '
-            'xmlns="urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/">'
-            '<item id=' + item_id + ' parentID="0" restricted="1">'
-            + tag('dc:title', 'title')
-            + tag('upnp:artist', 'artist')
-            + tag('upnp:album', 'album')
-            + tag('upnp:albumArtURI', 'art') +
-            '<upnp:class>object.item.audioItem.audioBroadcast</upnp:class>'
-            '<res protocolInfo="http-get:*:' + mime + ':*">' + escape(uri) + '</res>'
-            '</item></DIDL-Lite>')
-    return uri, didl
+    return uri, broadcast_didl(uri, meta['title'], meta['artist'], meta['album'], meta['art'], meta['id'])
 
 
 @route('/')
@@ -232,7 +230,8 @@ def zonePlayURI(name_udn, uri):
     zone = __getSingleZone(name_udn)
     if zone != None:
         #zone.play("dlna-playcontainer://{udn}?sid={sid}&cid={cid}&md=0".format(udn=quote(raumfeld.getMediaServerUDN()), sid=quote("urn:upnp-org:serviceId:ContentDirectory"), cid=quote("0/Playlists/MyPlaylists/Radio/" + unicode(index))))
-        zone.play(*__streamAndMeta(uri))
+        with _zoneLock(zone.UDN):
+            zone.play(*__streamAndMeta(uri))
         returndata["success"] = True
     return json.dumps(returndata)
 
@@ -262,7 +261,8 @@ def zoneBendURI(name_udn, uri):
         response.status = 400
         returndata["error"] = "a title is required"
     elif zone != None:
-        zone.bend(uri, meta)
+        with _zoneLock(zone.UDN):
+            zone.bend(uri, meta)
         returndata["success"] = True
     return json.dumps(returndata)
 
@@ -500,6 +500,36 @@ print(("Host URL: " +raumfeld.hostBaseURL))
 resetUpdateAvailableEventThread = threading.Thread(target=__resetUpdateAvailableEventThread)
 resetUpdateAvailableEventThread.daemon = True
 resetUpdateAvailableEventThread.start()
+
+# How often, at most, the FIP follower looks at the zones, in seconds.
+FIP_FOLLOW_INTERVAL = 5
+
+
+def __followFip(url):
+    """Keep the zones that play FIP showing the song that plays; see fip.py."""
+    follower = fip.Follower(fip.http_feed(url))
+    while True:
+        try:
+            follower.tick(list(raumfeld.getZones()), _zoneLock)
+        except Exception:  # the thread must outlive any one bad round
+            logging.exception("FIP follower round failed")
+        # Look again when a station's feed is due, so a song change is not left waiting.
+        due = follower.next_due()
+        wait = FIP_FOLLOW_INTERVAL if due is None else due - time.time()
+        time.sleep(min(max(wait, 0.5), FIP_FOLLOW_INTERVAL))
+
+
+# Opt-in: without a fip-metadata service to ask, the zones keep the descriptions they
+# were started with.
+fipMetadataURL = os.getenv('FIP_METADATA_URL')
+if fipMetadataURL:
+    print("Following FIP songs from " + fipMetadataURL)
+    fipThread = threading.Thread(target=__followFip, args=(fipMetadataURL,), name='fip-follower')
+    fipThread.daemon = True
+    # The SOAP client logs every request; the follower's two per zone every few seconds
+    # would bury everything else in the log.
+    logging.getLogger('pysimplesoap.client').addFilter(lambda record: record.threadName != 'fip-follower')
+    fipThread.start()
 
 def enable_cors(fn):
     def _enable_cors(*args, **kwargs):
